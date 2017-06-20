@@ -23,6 +23,38 @@
 # \e[K  => clears everything after the cursor on the current line
 # \e[2K => clear everything on the current line
 
+export PURE_COLOR_VIM_INS="cyan"
+export PURE_COLOR_VIM_CMD="green"
+#export PURE_COLOR_GIT="black"
+#export PURE_COLOR_GIT_DELAY="red"
+#export PURE_COLOR_GIT_ARROWS="black"
+#export PURE_COLOR_EXEC_TIME="yellow"
+#export PURE_COLOR_USER="black"
+#export PURE_COLOR_USER_ROOT="white"
+#export PURE_COLOR_HOST="black"
+#export PURE_COLOR_VENV="black"
+#export PURE_COLOR_PROMPT"green"
+#export PURE_COLOR_PROMPT_ERR="red"
+
+# set STATUS_COLOR: cyan for "insert", green for "normal" mode.
+STATUS_COLOR=${PURE_COLOR_VIM_INS:-cyan}
+
+ prompt_purer_vim_mode() {
+ 	STATUS_COLOR="${${KEYMAP/vicmd/${PURE_COLOR_VIM_CMD:-cyan}}/(main|viins)/${PURE_COLOR_VIM_INS:-green}}"
+ 	prompt_pure_preprompt_render
+ }
+
+function prompt_purer_vim_line_finish {
+  STATUS_COLOR=${PURE_COLOR_VIM_INS:-cyan}
+}
+
+# Fix a bug when you C-c in CMD mode and you'd be prompted with CMD mode indicator, while in fact you would be in INS mode
+# Fixed by catching SIGINT (C-c), set vim_mode to INS and then repropagate the SIGINT, so if anything else depends on it, we will not break it
+function TRAPINT() {
+  vim_mode=$vim_ins_mode
+  return $(( 128 + $1 ))
+}
+
 
 # turns seconds into human readable time
 # 165392 => 1d 21h 56m 32s
@@ -105,14 +137,17 @@ prompt_pure_preprompt_render() {
 
 	# Set color for git branch/dirty status, change color if dirty checking has
 	# been delayed.
-	local git_color=242
-	[[ -n ${prompt_pure_git_last_dirty_check_timestamp+x} ]] && git_color=red
+	local git_color=${PURE_COLOR_GIT:-black}
+	[[ -n ${prompt_pure_git_last_dirty_check_timestamp+x} ]] && git_color=${PURE_COLOR_GIT_DELAY:-red}
 
 	# Initialize the preprompt array.
 	local -a preprompt_parts
 
+	# Username and machine, if applicable.
+	[[ -n $prompt_pure_username ]] && preprompt_parts+=('$prompt_pure_username')
+
 	# Set the path.
-	preprompt_parts+=('%F{blue}%~%f')
+	preprompt_parts+=('%F{$STATUS_COLOR}%~%f')
 
 	# Add git branch and dirty status info.
 	typeset -gA prompt_pure_vcs_info
@@ -121,13 +156,11 @@ prompt_pure_preprompt_render() {
 	fi
 	# Git pull/push arrows.
 	if [[ -n $prompt_pure_git_arrows ]]; then
-		preprompt_parts+=('%F{cyan}${prompt_pure_git_arrows}%f')
+		preprompt_parts+=('%F{${PURE_COLOR_GIT_ARROWS:-black}}${prompt_pure_git_arrows}%f')
 	fi
 
-	# Username and machine, if applicable.
-	[[ -n $prompt_pure_username ]] && preprompt_parts+=('$prompt_pure_username')
 	# Execution time.
-	[[ -n $prompt_pure_cmd_exec_time ]] && preprompt_parts+=('%F{yellow}${prompt_pure_cmd_exec_time}%f')
+	[[ -n $prompt_pure_cmd_exec_time ]] && preprompt_parts+=('%F{${PURE_COLOR_EXEC_TIME:-yellow}}${prompt_pure_cmd_exec_time}%f')
 
 	local cleaned_ps1=$PROMPT
 	local -H MATCH
@@ -454,17 +487,21 @@ prompt_pure_setup() {
 	add-zsh-hook precmd prompt_pure_precmd
 	add-zsh-hook preexec prompt_pure_preexec
 
+	# register custom function for vim-mode
+	zle -N zle-keymap-select prompt_purer_vim_mode
+	zle -N zle-line-finish prompt_purer_vim_line_finish
+
 	# show username@host if logged in through SSH
-	[[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%F{242}%n@%m%f'
+	[[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%F{${PURE_COLOR_USER:-black}}%n%f%F{${PURE_COLOR_HOST:-black}}@%m%f'
 
 	# show username@host if root, with username in white
-	[[ $UID -eq 0 ]] && prompt_pure_username='%F{white}%n%f%F{242}@%m%f'
+	[[ $UID -eq 0 ]] && prompt_pure_username='%F{${PURE_COLOR_USER_ROOT:-white}}%n%f%F{${PURE_COLOR_HOST:-black}}@%m%f'
 
 	# if a virtualenv is activated, display it in grey
-	PROMPT='%(12V.%F{242}%12v%f .)'
+	PROMPT='%(12V.%F{${PURE_COLOR_VENV:-black}}%12v%f .)'
 
 	# prompt turns red if the previous command didn't exit with 0
-	PROMPT+='%(?.%F{magenta}.%F{red})${PURE_PROMPT_SYMBOL:-❯}%f '
+	PROMPT+='%(?.%F{${PURE_COLOR_PROMPT:-green}}.%F{${PURE_COLOR_PROMPT_ERR:-red}})${PURE_PROMPT_SYMBOL:-❯}%f '
 }
 
 prompt_pure_setup "$@"
