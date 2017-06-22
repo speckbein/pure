@@ -23,8 +23,8 @@
 # \e[K  => clears everything after the cursor on the current line
 # \e[2K => clear everything on the current line
 
-export PURE_COLOR_VIM_INS="cyan"
-export PURE_COLOR_VIM_CMD="green"
+#export PURE_COLOR_VIM_INS="cyan"
+#export PURE_COLOR_VIM_CMD="green"
 #export PURE_COLOR_GIT="black"
 #export PURE_COLOR_GIT_DELAY="red"
 #export PURE_COLOR_GIT_ARROWS="black"
@@ -35,17 +35,21 @@ export PURE_COLOR_VIM_CMD="green"
 #export PURE_COLOR_VENV="black"
 #export PURE_COLOR_PROMPT"green"
 #export PURE_COLOR_PROMPT_ERR="red"
+#export PURE_PROMPT_SYMBOL_VIM_INS="❯"
+#export PURE_PROMPT_SYMBOL_VIM_CMD="❮"
 
 # set STATUS_COLOR: cyan for "insert", green for "normal" mode.
 STATUS_COLOR=${PURE_COLOR_VIM_INS:-cyan}
-
+PURE_PROMPT_SYMBOL=${PURE_PROMPT_SYMBOL_VIM_INS:-❯}
  prompt_purer_vim_mode() {
- 	STATUS_COLOR="${${KEYMAP/vicmd/${PURE_COLOR_VIM_CMD:-cyan}}/(main|viins)/${PURE_COLOR_VIM_INS:-green}}"
+ 	STATUS_COLOR="${${KEYMAP/vicmd/${PURE_COLOR_VIM_CMD:-cyan}}/(main|viins)/${PURE_COLOR_VIM_INS:-cyan}}"
+ 	PURE_PROMPT_SYMBOL="${${KEYMAP/vicmd/${PURE_PROMPT_SYMBOL_VIM_CMD:-❮}}/(main|viins)/${PURE_PROMPT_SYMBOL_VIM_INS:-❯}}"
  	prompt_pure_preprompt_render
  }
 
 function prompt_purer_vim_line_finish {
   STATUS_COLOR=${PURE_COLOR_VIM_INS:-cyan}
+  PURE_PROMPT_SYMBOL=${PURE_PROMPT_SYMBOL_VIM_INS:-❯}
 }
 
 # Fix a bug when you C-c in CMD mode and you'd be prompted with CMD mode indicator, while in fact you would be in INS mode
