@@ -23,33 +23,57 @@
 # \e[K  => clears everything after the cursor on the current line
 # \e[2K => clear everything on the current line
 
-#export PURE_COLOR_VIM_INS="cyan"
-#export PURE_COLOR_VIM_CMD="green"
-#export PURE_COLOR_GIT="black"
-#export PURE_COLOR_GIT_DELAY="red"
-#export PURE_COLOR_GIT_ARROWS="black"
-#export PURE_COLOR_EXEC_TIME="yellow"
-#export PURE_COLOR_USER="black"
-#export PURE_COLOR_USER_ROOT="white"
-#export PURE_COLOR_HOST="black"
-#export PURE_COLOR_VENV="black"
-#export PURE_COLOR_PROMPT"green"
-#export PURE_COLOR_PROMPT_ERR="red"
-#export PURE_PROMPT_SYMBOL_VIM_INS="❯"
-#export PURE_PROMPT_SYMBOL_VIM_CMD="❮"
+PURE_COLOR_VIM_INS=${PURE_COLOR_VIM_INS:-cyan}
+PURE_COLOR_VIM_CMD=${PURE_COLOR_VIM_CMD:-green}
+PURE_COLOR_GIT=${PURE_COLOR_GIT:-black}
+PURE_COLOR_GIT_DELAY=${PURE_COLOR_GIT_DELAY:-red}
+PURE_COLOR_GIT_ARROWS=${PURE_COLOR_GIT_ARROWS:-black}
+PURE_COLOR_EXEC_TIME=${PURE_COLOR_EXEC_TIME:-yellow}
+PURE_COLOR_USER=${PURE_COLOR_USER:-black}
+PURE_COLOR_USER_SYS=${PURE_COLOR_USER_SYS:-magenta}
+PURE_COLOR_HOST=${PURE_COLOR_HOST:-black}
+PURE_COLOR_VENV=${PURE_COLOR_VENV:-black}
+PURE_COLOR_VENV=${PURE_COLOR_VENV:-black}
+PURE_COLOR_PROMPT=${PURE_COLOR_PROMPT:-green}
+PURE_COLOR_PROMPT_ERR=${PURE_COLOR_PROMPT_ERR:-red}
+PURE_PROMPT_SYMBOL_VIM_INS=${PURE_PROMPT_SYMBOL_VIM_INS:-"❯"}
+PURE_PROMPT_SYMBOL_VIM_CMD=${PURE_PROMPT_SYMBOL_VIM_CMD:-"❮"}
 
-# set STATUS_COLOR: cyan for "insert", green for "normal" mode.
-STATUS_COLOR=${PURE_COLOR_VIM_INS:-cyan}
-PURE_PROMPT_SYMBOL=${PURE_PROMPT_SYMBOL_VIM_INS:-❯}
+PURE_COLOR_META=${PURE_COLOR_META:-black}
+
+PURE_PRE_USER=${PURE_PRE_USER:-''}
+PURE_PRE_HOST=${PURE_PRE_HOST:-'@'}
+PURE_PRE_DIR=${PURE_PRE_DIR:-''}
+PURE_PRE_GIT=${PURE_PRE_GIT:-''}
+
+PURE_POST_USER=${PURE_POST_USER:-''}
+PURE_POST_HOST=${PURE_POST_HOST:-''}
+PURE_POST_DIR=${PURE_POST_DIR:-''}
+PURE_POST_GIT=${PURE_POST_GIT:-''}
+
+PURE_CMD_MAX_EXEC_TIME=${PURE_CMD_MAX_EXEC_TIME:=5}
+PURE_MIN_UID=${PURE_MIN_UID:=5000}
+PURE_GIT_PULL=${PURE_GIT_PULL:-1}
+PURE_GIT_DELAY_DIRTY_CHECK=${PURE_GIT_DELAY_DIRTY_CHECK:-1800}
+PURE_GIT_UNTRACKED_DIRTY=${PURE_GIT_UNTRACKED_DIRTY:-1}
+PURE_GIT_DOWN_ARROW=${PURE_GIT_DOWN_ARROW:-⇣}
+PURE_GIT_DOWN_ARROW=${PURE_GIT_UP_ARROW:-⇡}
+PURE_GIT_DIRTY_SYMBOL=${PURE_GIT_DIRTY_SYMBOL:-'*'}
+GIT_SSH_COMMAND=${GIT_SSH_COMMAND:-"ssh -o BatchMode=yes"}
+
+# set PURE_STATUS_COLOR: cyan for "insert", green for "normal" mode.
+PURE_PROMPT_SYMBOL=$PURE_PROMPT_SYMBOL_VIM_INS
+PURE_STATUS_COLOR=$PURE_COLOR_VIM_INS
+
  prompt_purer_vim_mode() {
- 	STATUS_COLOR="${${KEYMAP/vicmd/${PURE_COLOR_VIM_CMD:-cyan}}/(main|viins)/${PURE_COLOR_VIM_INS:-cyan}}"
- 	PURE_PROMPT_SYMBOL="${${KEYMAP/vicmd/${PURE_PROMPT_SYMBOL_VIM_CMD:-❮}}/(main|viins)/${PURE_PROMPT_SYMBOL_VIM_INS:-❯}}"
+ 	PURE_STATUS_COLOR="${${KEYMAP/vicmd/$PURE_COLOR_VIM_CMD}/(main|viins)/$PURE_COLOR_VIM_INS}"
+ 	PURE_PROMPT_SYMBOL="${${KEYMAP/vicmd/$PURE_PROMPT_SYMBOL_VIM_CMD}/(main|viins)/$PURE_PROMPT_SYMBOL_VIM_INS}"
  	prompt_pure_preprompt_render
  }
 
 function prompt_purer_vim_line_finish {
-  STATUS_COLOR=${PURE_COLOR_VIM_INS:-cyan}
-  PURE_PROMPT_SYMBOL=${PURE_PROMPT_SYMBOL_VIM_INS:-❯}
+  PURE_STATUS_COLOR=$PURE_COLOR_VIM_INS
+  PURE_PROMPT_SYMBOL=$PURE_PROMPT_SYMBOL_VIM_INS
 }
 
 # Fix a bug when you C-c in CMD mode and you'd be prompted with CMD mode indicator, while in fact you would be in INS mode
@@ -83,7 +107,7 @@ prompt_pure_check_cmd_exec_time() {
 	integer elapsed
 	(( elapsed = EPOCHSECONDS - ${prompt_pure_cmd_timestamp:-$EPOCHSECONDS} ))
 	prompt_pure_cmd_exec_time=
-	(( elapsed > ${PURE_CMD_MAX_EXEC_TIME:=5} )) && {
+	(( elapsed > $PURE_CMD_MAX_EXEC_TIME )) && {
 		prompt_pure_human_time_to_var $elapsed "prompt_pure_cmd_exec_time"
 	}
 }
@@ -141,30 +165,38 @@ prompt_pure_preprompt_render() {
 
 	# Set color for git branch/dirty status, change color if dirty checking has
 	# been delayed.
-	local git_color=${PURE_COLOR_GIT:-black}
-	[[ -n ${prompt_pure_git_last_dirty_check_timestamp+x} ]] && git_color=${PURE_COLOR_GIT_DELAY:-red}
+	local git_color=$PURE_COLOR_GIT
+	[[ -n ${prompt_pure_git_last_dirty_check_timestamp+x} ]] && git_color=$PURE_COLOR_GIT_DELAY
 
 	# Initialize the preprompt array.
 	local -a preprompt_parts
+
+
+	prompt_pure_username=
+	# show username@host if logged in through SSH
+	[[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username="%F{$PURE_COLOR_USER}$PURE_PRE_USER%f%F{$PURE_COLOR_USER}%n$PURE_POST_USER%f%F{$PURE_COLOR_HOST}$PURE_PRE_HOST%f%F{$PURE_COLOR_HOST}%m$PURE_POST_HOST%f"
+
+	# show username@host if root, with username in white
+	[[ $UID -lt $PURE_MIN_UID ]] && prompt_pure_username="%F{$PURE_COLOR_USER_SYS}$PURE_PRE_USER%f%F{$PURE_COLOR_USER_SYS}%n$PURE_POST_USER%f%F{$PURE_COLOR_HOST}$PURE_PRE_HOST%f%F{$PURE_COLOR_HOST}%m$PURE_POST_HOST%f"
 
 	# Username and machine, if applicable.
 	[[ -n $prompt_pure_username ]] && preprompt_parts+=('$prompt_pure_username')
 
 	# Set the path.
-	preprompt_parts+=('%F{$STATUS_COLOR}%~%f')
+	preprompt_parts+=("%F{$PURE_STATUS_COLOR}$PURE_PRE_DIR%f%F{$PURE_STATUS_COLOR}%~$PURE_POST_DIR%f")
 
 	# Add git branch and dirty status info.
 	typeset -gA prompt_pure_vcs_info
 	if [[ -n $prompt_pure_vcs_info[branch] ]]; then
-		preprompt_parts+=("%F{$git_color}"'${prompt_pure_vcs_info[branch]}${prompt_pure_git_dirty}%f')
+		preprompt_parts+=("%F{$git_color}${PURE_PRE_GIT}%f%F{$git_color}${prompt_pure_vcs_info[branch]}${prompt_pure_git_dirty}$PURE_POST_GIT%f")
 	fi
 	# Git pull/push arrows.
 	if [[ -n $prompt_pure_git_arrows ]]; then
-		preprompt_parts+=('%F{${PURE_COLOR_GIT_ARROWS:-black}}${prompt_pure_git_arrows}%f')
+		preprompt_parts+=('%F{$PURE_COLOR_GIT_ARROWS}${prompt_pure_git_arrows}%f')
 	fi
 
 	# Execution time.
-	[[ -n $prompt_pure_cmd_exec_time ]] && preprompt_parts+=('%F{${PURE_COLOR_EXEC_TIME:-yellow}}${prompt_pure_cmd_exec_time}%f')
+	[[ -n $prompt_pure_cmd_exec_time ]] && preprompt_parts+=('%F{$PURE_COLOR_EXEC_TIME}${prompt_pure_cmd_exec_time}%f')
 
 	local cleaned_ps1=$PROMPT
 	local -H MATCH
@@ -296,7 +328,7 @@ prompt_pure_async_git_fetch() {
 	# set GIT_TERMINAL_PROMPT=0 to disable auth prompting for git fetch (git 2.3+)
 	export GIT_TERMINAL_PROMPT=0
 	# set ssh BachMode to disable all interactive ssh password prompting
-	export GIT_SSH_COMMAND=${GIT_SSH_COMMAND:-"ssh -o BatchMode=yes"}
+	export GIT_SSH_COMMAND=$GIT_SSH_COMMAND
 
 	command git -c gc.auto=0 fetch &>/dev/null || return 99
 
@@ -358,17 +390,17 @@ prompt_pure_async_refresh() {
 	async_job "prompt_pure" prompt_pure_async_git_arrows $PWD
 
 	# do not preform git fetch if it is disabled or working_tree == HOME
-	if (( ${PURE_GIT_PULL:-1} )) && [[ $working_tree != $HOME ]]; then
+	if (( $PURE_GIT_PULL )) && [[ $working_tree != $HOME ]]; then
 		# tell worker to do a git fetch
 		async_job "prompt_pure" prompt_pure_async_git_fetch $PWD
 	fi
 
 	# if dirty checking is sufficiently fast, tell worker to check it again, or wait for timeout
 	integer time_since_last_dirty_check=$(( EPOCHSECONDS - ${prompt_pure_git_last_dirty_check_timestamp:-0} ))
-	if (( time_since_last_dirty_check > ${PURE_GIT_DELAY_DIRTY_CHECK:-1800} )); then
+	if (( time_since_last_dirty_check > $PURE_GIT_DELAY_DIRTY_CHECK )); then
 		unset prompt_pure_git_last_dirty_check_timestamp
 		# check check if there is anything to pull
-		async_job "prompt_pure" prompt_pure_async_git_dirty ${PURE_GIT_UNTRACKED_DIRTY:-1} $PWD
+		async_job "prompt_pure" prompt_pure_async_git_dirty $PURE_GIT_UNTRACKED_DIRTY $PWD
 	fi
 }
 
@@ -376,8 +408,8 @@ prompt_pure_check_git_arrows() {
 	setopt localoptions noshwordsplit
 	local arrows left=${1:-0} right=${2:-0}
 
-	(( right > 0 )) && arrows+=${PURE_GIT_DOWN_ARROW:-⇣}
-	(( left > 0 )) && arrows+=${PURE_GIT_UP_ARROW:-⇡}
+	(( right > 0 )) && arrows+=$PURE_GIT_DOWN_ARROW
+	(( left > 0 )) && arrows+=$PURE_GIT_UP_ARROW
 
 	[[ -n $arrows ]] || return
 	typeset -g REPLY=$arrows
@@ -429,7 +461,7 @@ prompt_pure_async_callback() {
 			if (( code == 0 )); then
 				prompt_pure_git_dirty=
 			else
-				prompt_pure_git_dirty="*"
+				prompt_pure_git_dirty=$PURE_GIT_DIRTY_SYMBOL
 			fi
 
 			[[ $prev_dirty != $prompt_pure_git_dirty ]] && prompt_pure_preprompt_render
@@ -495,17 +527,11 @@ prompt_pure_setup() {
 	zle -N zle-keymap-select prompt_purer_vim_mode
 	zle -N zle-line-finish prompt_purer_vim_line_finish
 
-	# show username@host if logged in through SSH
-	[[ "$SSH_CONNECTION" != '' ]] && prompt_pure_username='%F{${PURE_COLOR_USER:-black}}%n%f%F{${PURE_COLOR_HOST:-black}}@%m%f'
-
-	# show username@host if root, with username in white
-	[[ $UID -eq 0 ]] && prompt_pure_username='%F{${PURE_COLOR_USER_ROOT:-white}}%n%f%F{${PURE_COLOR_HOST:-black}}@%m%f'
-
 	# if a virtualenv is activated, display it in grey
-	PROMPT='%(12V.%F{${PURE_COLOR_VENV:-black}}%12v%f .)'
+	PROMPT='%(12V.%F{$PURE_COLOR_VENV}%12v%f .)'
 
 	# prompt turns red if the previous command didn't exit with 0
-	PROMPT+='%(?.%F{${PURE_COLOR_PROMPT:-green}}.%F{${PURE_COLOR_PROMPT_ERR:-red}})${PURE_PROMPT_SYMBOL:-❯}%f '
+	PROMPT+='%(?.%F{$PURE_COLOR_PROMPT}.%F{$PURE_COLOR_PROMPT_ERR})$PURE_PROMPT_SYMBOL%f '
 }
 
 prompt_pure_setup "$@"
